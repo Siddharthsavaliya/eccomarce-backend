@@ -26,10 +26,12 @@ exports.createProduct = async (req, res) => {
         });
     }
 };
-exports.updateStatus = async (req, res) => {
+exports.updateProduct = async (req, res) => {
+
     try {
         const productId = req.params.id;
         const status = req.body.status;
+        const updateFields = req.body;
 
         if (!status) {
             return res.status(400).json({
@@ -64,13 +66,17 @@ exports.updateStatus = async (req, res) => {
             });
         }
 
-        product.status = status;
+        for (const field in updateFields) {
+            if (updateFields.hasOwnProperty(field)) {
+                product[field] = updateFields[field];
+            }
+        }
 
         await product.save();
 
         return res.status(200).json({
             status: "Success",
-            message: "Product Status updated successfully",
+            message: "Product updated successfully",
         });
     } catch (error) {
         console.error("Update product status error: " + error);
