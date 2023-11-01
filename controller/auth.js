@@ -1,30 +1,86 @@
 const model = require('../model/user')
 const { getToken } = require('../configuration/token')
 const userModel = model.User;
+const nodeMailer = require('nodemailer');
+const twilio = require('twilio');
+const logger = require("../logger");
+let OTP;
 
-exports.signup = async (req, res) => {
+// send message function
+async function sendSms({ otp, phone }) {
+    const client = new twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
+    console.log(phone)
+    console.log(otp)
+    return client.messages
+        .create({ body: 'Your verification code is ' + otp, from: "+12566125479", to: phone })
+        .then(message => console.log(message))
+        .catch(err => console.log(err));
+}
+
+
+
+// send email 
+async function sendEmail({ otp, email }) {
+    const transporter = nodeMailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        requireTLS: true,
+        auth: {
+            user: 'samarpan.infotech.1221@gmail.com',
+            pass: process.env.smtpPassword
+        }
+    });
+    const mailOption = {
+        from: 'samarpan.infotech.1221@gmail.com',
+        to: email,
+        subject: 'Verification Code',
+        text: 'Your verification code is ' + otp
+    }
     try {
-        const { email } = req.body;
-
-        const exitingUser = await userModel.findOne({ email: email });
-        if (exitingUser) {
-            return res.status(400).send({
-                status: "Failed",
-                message: "User already exists"
+        await new Promise((resolve, reject) => {
+            transporter.sendMail(mailOption, (error, info) => {
+                if (error) {
+                    console.error(error);
+                    reject(error); // Throw an error
+                } else if (info) {
+                    console.log(info);
+                    resolve(info);
+                }
             });
+        });
+    } catch (error) {
+        throw new Error("Email sending failed: " + error.message);
+    }
+
+}
+
+// send otp 
+exports.sendOtp = async (req, res) => {
+    try {
+        const { phone, email } = req.body;
+        let digits = "0123456789";
+        OTP = "";
+
+        for (let i = 0; i < 4; i++) {
+            OTP += digits[Math.floor(Math.random() * 10)]
         }
 
-        const newUser = new userModel(req.body);
-        await newUser.save()
-        const token = getToken(newUser);
-        return res.status(201).send({
-            status: "Success",
-            message: "User registration successful done",
-            token: token
-        });
-
+        if (phone != null) {
+            sendSms({ otp: OTP, phone: phone })
+                .then(() => res.status(201).send({
+                    status: "Success",
+                    message: "Otp sent successfully to your phone number"
+                }))
+        } else {
+            sendEmail({ otp: OTP, email: email })
+                .then(() => res.status(201).send({
+                    status: "Success",
+                    message: "Otp sent successfully to your email address"
+                }))
+        }
     } catch (error) {
-        console.log("Sign-up error: " + error);
+        logger.error("Sign-up error: " + error);
         return res.status(500).send({
             status: "Failed",
             message: "Internal error occurred",
@@ -33,24 +89,94 @@ exports.signup = async (req, res) => {
     }
 };
 
-exports.login = async (req, res) => {
+// sign up with otp
+exports.signUpWithOtp = async (req, res) => {
     try {
-        const { email } = req.body;
-        const user = await userModel.findOne({ email: email });
-        if (!user) {
+        let exitingUser;
+        const { phone, email, otp } = req.body;
+        if (phone != null) {
+            exitingUser = await userModel.findOne({ phone: phone });
+        } else {
+            exitingUser = await userModel.findOne({ email: email });
+        }
+
+        if (exitingUser) {
             return res.status(400).send({
                 status: "Failed",
-                message: "User Not exists,Please sign-up"
+                message: "User already exists"
             });
         }
-        const token = getToken(user);
-        return res.status(201).send({
-            status: "success",
-            message: "Login successful",
-            token: token
-        });
+        console.log(OTP)
+        if (OTP === otp) {
+
+            const newUser = new userModel(req.body);
+            await newUser.save()
+            const token = getToken(newUser);
+            return res.status(201).send({
+                status: "Success",
+                message: "User registration successful done",
+                token: token
+            });
+        } else {
+            return res.status(401).send({
+                status: "Failed",
+                message: "Invalid OTP",
+            });
+        }
+
+
+
     } catch (error) {
-        console.log("Log-In error: " + error);
+        logger.error("Sign-up error: " + error);
+        return res.status(500).send({
+            status: "Failed",
+            message: "Internal error occurred",
+            error: error
+        });
+    }
+};
+
+// login with otp
+exports.loginWithOtp = async (req, res) => {
+    try {
+        const { phone, email, otp } = req.body;
+        if (!otp || (!phone || !email)) {
+            logger.error("Invalid json in login with otp");
+            return res.status(401).send({
+                status: "Failed",
+                message: "Invalid json",
+            });
+        }
+        if (OTP === otp) {
+            let user;
+            if (phone != null) {
+                user = await userModel.findOne({ phone: phone });
+            } else {
+                user = await userModel.findOne({ email: email });
+            }
+            if (!user) {
+                logger.error(phone + " User Not exists,Please sign-up login with otp");
+                return res.status(400).send({
+                    status: "Failed",
+                    message: "User Not exists,Please sign-up"
+                });
+            }
+            const token = getToken(user);
+            return res.status(201).send({
+                status: "success",
+                message: "Login successful",
+                token: token
+            });
+        } else {
+            logger.error(phone + "Invalid OTP login with otp");
+            return res.status(401).send({
+                status: "Failed",
+                message: "Invalid OTP",
+            });
+        }
+
+    } catch (error) {
+        logger.error(error + "Login With otp");
         return res.status(500).send({
             status: "Failed",
             message: "Internal error occurred",

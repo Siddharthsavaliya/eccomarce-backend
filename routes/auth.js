@@ -3,8 +3,9 @@ const router = express.Router();
 const authController = require('../controller/auth');
 
 router
-    .post("/signup", authController.signup)
-    .post("/login", authController.login)
+    .post("/sendOtp", authController.sendOtp)
+    .post("/signUpWithOtp", authController.signUpWithOtp)
+    .post("/loginWithOtp", authController.loginWithOtp)
 
 
 exports.routes = router;

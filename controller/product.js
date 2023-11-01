@@ -20,7 +20,7 @@ exports.createProduct = async (req, res) => {
     } catch (error) {
         console.log("create product error: " + error);
         return res.status(500).send({
-            status: "Failedaaaaaaaa",
+            status: "Failed",
             message: "Internal error occurred",
             error: error
         });
