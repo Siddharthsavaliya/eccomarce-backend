@@ -11,10 +11,14 @@ async function sendSms({ otp, phone }) {
     const client = new twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
     console.log(phone)
     console.log(otp)
-    return client.messages
-        .create({ body: 'Your verification code is ' + otp, from: "+12566125479", to: phone })
-        .then(message => console.log(message))
-        .catch(err => console.log(err));
+
+    await new Promise((resolve, reject) => {
+        client.messages
+            .create({ body: 'Your verification code is ' + otp, from: "+12566125479", to: phone })
+            .then(message => resolve(message))
+            .catch(err => reject(err));
+    });
+
 }
 
 
@@ -42,7 +46,7 @@ async function sendEmail({ otp, email }) {
             transporter.sendMail(mailOption, (error, info) => {
                 if (error) {
                     console.error(error);
-                    reject(error); // Throw an error
+                    reject(error);
                 } else if (info) {
                     console.log(info);
                     resolve(info);
@@ -140,7 +144,7 @@ exports.signUpWithOtp = async (req, res) => {
 exports.loginWithOtp = async (req, res) => {
     try {
         const { phone, email, otp } = req.body;
-        if (!otp || (!phone || !email)) {
+        if (!otp || (!phone && !email)) {
             logger.error("Invalid json in login with otp");
             return res.status(401).send({
                 status: "Failed",
