@@ -12,6 +12,8 @@ const corsOptions = {
 const cors = require('cors');
 const winston = require('winston');
 // middleware
+
+app.set('view engine', 'ejs')
 app.use(bodyParser.json());
 app.use(express.json());
 
