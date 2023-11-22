@@ -22,12 +22,14 @@ const authRouter = require('./routes/auth');
 const userRouter = require('./routes/user');
 const productRouter = require('./routes/product');
 const cartRouter = require('./routes/cart');
+const errorHandler = require("./middleware/errorHendler");
 
 
 app.use('/api/auth', authRouter.routes)
 app.use('/api', userRouter.routes)
 app.use('/api', productRouter.routes)
 app.use('/api/cart', cartRouter.routes)
+app.use(errorHandler)
 
 database()
     .then(() => console.log("Database connected"))
