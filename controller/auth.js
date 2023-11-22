@@ -4,6 +4,8 @@ const userModel = model.User;
 const nodeMailer = require('nodemailer');
 const twilio = require('twilio');
 const logger = require("../logger");
+const { INVALID_JSON } = require('../constants/errorCodes');
+const AppError = require('../appError');
 let OTP;
 
 // send message function
@@ -119,11 +121,12 @@ exports.signUpWithOtp = async (req, res) => {
 };
 
 // login with otp
-exports.loginWithOtp = async (req, res, next) => {
+exports.loginWithOtp = async (req, res) => {
+
     const { phone, email, otp } = req.body;
     if (!otp || (!phone && !email)) {
         logger.error("Invalid json in login with otp");
-        throw new Error("Invalid json");
+        throw new AppError(INVALID_JSON, "INVALID JSON", INVALID_JSON)
     }
     if (OTP === otp) {
         let user;
@@ -146,5 +149,6 @@ exports.loginWithOtp = async (req, res, next) => {
         logger.error(phone + "Invalid OTP login with otp");
         throw new Error("Invalid OTP");
     }
+
 
 };
